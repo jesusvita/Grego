@@ -22,5 +22,6 @@ from chat import views as chat_views # Import your chat app's views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', chat_views.index, name='index'),  # Route for the root URL
+    path('rooms/', chat_views.list_active_rooms, name='list_active_rooms'), # New route for listing rooms
     path('chat/', include('chat.urls')),
 ]

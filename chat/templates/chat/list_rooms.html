@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Active Chat Rooms</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin-bottom: 10px; }
+        a { text-decoration: none; color: #007bff; }
+        a:hover { text-decoration: underline; }
+        .no-rooms { color: #777; }
+    </style>
+</head>
+<body>
+    <h1>Active Chat Rooms</h1>
+    {% if active_rooms %}
+        <ul>
+            {% for room_name in active_rooms %}
+                <li><a href="{% url 'chat:room' room_name=room_name %}">{{ room_name }}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="no-rooms">No active rooms at the moment. Be the first to start one!</p>
+    {% endif %}
+    <p><a href="{% url 'index' %}">Back to Home</a></p>
+</body>
+</html>
