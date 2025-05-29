@@ -4,5 +4,6 @@ from . import views
 
 app_name = 'chat' # Optional: add app namespace
 urlpatterns = [
+    path('', views.home_view, name='home'),
     path('<str:room_name>/', views.room, name='room'),
 ]

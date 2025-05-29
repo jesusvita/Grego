@@ -1,12 +1,20 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 import redis
+from django.contrib.auth.decorators import login_required
+
 # urllib.parse 
 
 
 def index(request):
    
     return render(request, 'chat/index.html')
+
+@login_required
+def home_view(request):
+    return render(request, 'chat/home.html')
 
 def list_active_rooms(request):
     active_rooms = []
@@ -59,7 +67,35 @@ def list_active_rooms(request):
 
     return render(request, 'chat/list_rooms.html', {'active_rooms': sorted(list(set(active_rooms)))})
 
+
+@login_required
 def room(request, room_name):
     return render(request, 'chat/room.html', {
         'room_name': room_name
     })
+
+def signup_view(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('chat')  # Replace with your chat view name
+    else:
+        form = UserCreationForm()
+    return render(request, 'accounts/signup.html', {'form': form})
+
+def login_view(request):
+    if request.method == 'POST':
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            return redirect('chat')
+    else:
+        form = AuthenticationForm()
+    return render(request, 'accounts/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')

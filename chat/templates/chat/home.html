@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h1 class="text-2xl font-bold">Welcome to Grego Chat!</h1>
+  <p>This is the homepage. You are logged in.</p>
+
+  Welcome to the Chat App! <br>
+    What chat room would you like to enter?<br>
+    <input id="room-name-input" type="text" size="100"><br>
+    <input id="room-name-submit" type="button" value="Enter">
+
+    <script>
+        document.querySelector('#room-name-input').focus();
+        document.querySelector('#room-name-input').onkeyup = function(e) {
+            if (e.key === 'Enter') {  // enter, return
+                document.querySelector('#room-name-submit').click();
+            }
+        };
+
+        document.querySelector('#room-name-submit').onclick = function(e) {
+            var roomName = document.querySelector('#room-name-input').value;
+            // Redirect to the chat room URL, ensuring roomName is URL-safe
+            window.location.pathname = '/chat/' + encodeURIComponent(roomName) + '/';
+        };
+    </script>
+{% endblock %}

@@ -18,10 +18,12 @@ from django.contrib import admin
 from django.urls import path
 from django.conf.urls import include # Keep this if you use it elsewhere, or just 'include' from django.urls
 from chat import views as chat_views # Import your chat app's views
+from django.urls import include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', chat_views.index, name='index'),  # Route for the root URL
     path('rooms/', chat_views.list_active_rooms, name='list_active_rooms'), # New route for listing rooms
     path('chat/', include('chat.urls')),
+    path('accounts/', include('accounts.urls')),
 ]

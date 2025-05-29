@@ -14,7 +14,7 @@ from channels.security.websocket import AllowedHostsOriginValidator # For securi
 from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'chat_project.settings')
-
+from chat.consumers import ChatConsumer
 # Import routing for our chat app AFTER os.environ.setdefault
 import chat.routing
 

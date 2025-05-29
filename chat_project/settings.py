@@ -14,6 +14,8 @@ import os
 import dj_database_url
 from pathlib import Path
 
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+SECRET_KEY = '7&=9+s55^9)%yx51$qol_tz4dha7c&p3m25vih6m6eh1pyt^&*'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '') != 'False'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1').split(' ')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1', ).split(',')
 
 # For WebSocket connections and secure POST requests in production
 CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000 http://127.0.0.1:8000').split(' ')
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'chat',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -84,13 +87,10 @@ WSGI_APPLICATION = 'chat_project.wsgi.application'
 
 # Default to SQLite for local development if DATABASE_URL is not set
 # Fly.io will set DATABASE_URL for your PostgreSQL instance
+
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", # Fallback for local dev
-        conn_max_age=600, # Number of seconds database connections should persist
-        conn_health_checks=True, # Enable health checks for connections
-        ssl_require=os.environ.get('DATABASE_SSL_REQUIRE', 'False') == 'True' # Require SSL if env var is set (Fly.io often needs this)
-    )
+    "default": dj_database_url.config(conn_max_age=600)
 }
 
 # Password validation
@@ -170,3 +170,7 @@ LOGGING = {
         'level': 'INFO', # Adjust log level as needed for production
     },
 }
+
+LOGIN_REDIRECT_URL = 'home'  # Replace with your actual home route name
+LOGOUT_REDIRECT_URL = 'login'
+
