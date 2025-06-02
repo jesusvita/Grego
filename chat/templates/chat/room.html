@@ -6,7 +6,7 @@
     <style>
         body { font-family: sans-serif; margin: 20px; }
         #chat-log { width: 80%; height: 300px; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; overflow-y: scroll; }
-        .chat-interface { display: none; } /* Hide chat initially */
+        /* .chat-interface { display: none; } Removed, chat is visible by default */
         #username-input-section { margin-bottom: 15px; }
         #username-input { padding: 10px; margin-right: 5px; }
         #join-chat-button { padding: 10px; }
@@ -16,78 +16,153 @@
     </style>
 </head>
 <body>
-    <h1>Chat Room: <span id="display-room-name"></span></h1>
+    {% if user.is_authenticated %}
+        <p>Welcome, <strong>{{ user.username }}</strong>!</p>
+    {% else %}
+        <div id="username-input-section">
+            <input id="username-input" type="text" placeholder="Enter your name..." aria-label="Enter your name to join chat"/>
+            <input id="join-chat-button" type="button" value="Join Chat">
+        </div>
+    {% endif %}
 
-    <div id="username-input-section">
-        <input id="username-input" type="text" placeholder="Enter your name..."/>
-        <input id="join-chat-button" type="button" value="Join Chat">
+    <div class="chat-interface" {% if not user.is_authenticated %}style="display: none;"{% endif %}>
+        <textarea id="chat-log" readonly aria-live="polite" aria-atomic="false"></textarea><br>
+        <input id="chat-message-input" type="text" placeholder="Type message..."><br>
+        <input id="chat-message-submit" type="button" value="Send">
     </div>
-
-    <div class="chat-interface">
-    <textarea id="chat-log" readonly></textarea><br>
-    <input id="chat-message-input" type="text" placeholder="Type message..."><br>
-    <input id="chat-message-submit" type="button" value="Send">
 
     {{ room_name|json_script:"room-name-data" }}
-
-    </div>
+   
+    {{ user.is_authenticated|json_script:"user-is-authenticated-data" }}
+    {% if user.is_authenticated %}
+        {{ user.username|json_script:"user-username-data" }}
+    {% endif %}
 
     <script>
         const roomName = JSON.parse(document.getElementById('room-name-data').textContent);
-        document.getElementById('display-room-name').textContent = roomName;
+        const userIsAuthenticated = JSON.parse(document.getElementById('user-is-authenticated-data').textContent);
+        let currentChatUsername = ''; // This will hold the name used in chat
 
-        const usernameInput = document.querySelector('#username-input');
-        const joinChatButton = document.querySelector('#join-chat-button');
+        // Elements that are always present or conditionally handled
+        const usernameInputSection = document.getElementById('username-input-section');
+        let usernameInput = null; // Will be assigned if user is anonymous
+        let joinChatButton = null; // Will be assigned if user is anonymous
+
+        // Chat interface elements
         const chatInterfaceDiv = document.querySelector('.chat-interface');
         const chatLog = document.querySelector('#chat-log');
         const chatMessageInput = document.querySelector('#chat-message-input');
         const chatMessageSubmit = document.querySelector('#chat-message-submit');
 
         let chatSocket = null;
-        let currentUsername = '';
 
-        joinChatButton.onclick = function(e) {
-            currentUsername = usernameInput.value.trim();
-            if (currentUsername === '') {
-                alert('Please enter a username.');
-                usernameInput.focus();
-                return;
+        function initializeWebSocket() {
+            // Ensure chat interface is visible and username input is hidden
+            if (usernameInputSection) usernameInputSection.style.display = 'none';
+            chatInterfaceDiv.style.display = 'block';
+            chatMessageInput.focus();
+            chatMessageInput.disabled = false; // Ensure enabled on connect
+            chatMessageSubmit.disabled = false; // Ensure enabled on connect
+
+            let wsScheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            let wsPath = wsScheme + window.location.host + '/ws/chat/' + roomName + '/';
+
+            // Retrieve secret from sessionStorage for WebSocket connection if user is authenticated
+            // This assumes the secret was stored in sessionStorage on the create_room.html page
+            if (userIsAuthenticated) {
+                const storageKey = 'roomSecretFor_' + roomName; // Must match the key used in create_room.html
+                const secretForWsConnection = sessionStorage.getItem(storageKey);
+                if (secretForWsConnection) {
+                    wsPath += '?secret=' + encodeURIComponent(secretForWsConnection);
+                    // Clear it after use for this WebSocket connection attempt.
+                    // This means a page refresh won't automatically use the same secret again for the WS connection.
+                    sessionStorage.removeItem(storageKey);
+                }
             }
 
-            document.getElementById('username-input-section').style.display = 'none';
-            chatInterfaceDiv.style.display = 'block';
-            chatMessageInput.focus(); 
-
-            chatSocket = new WebSocket(
-                (window.location.protocol === 'https:' ? 'wss://' : 'ws://')
-                + window.location.host
-                + '/ws/chat/'
-                + roomName
-                + '/'
-            );
+            chatSocket = new WebSocket(wsPath);
 
             chatSocket.onopen = function(e) {
                 console.log('Chat socket opened.');
-                chatLog.value += 'You have joined the chat as ' + currentUsername + '.\n';
+                chatLog.value += 'You have joined the chat as ' + currentChatUsername + '.\n';
             };
 
             chatSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                chatLog.value += (data.username + ': ' + data.message + '\n');
-                chatLog.scrollTop = chatLog.scrollHeight; // Auto-scroll
+                try {
+                    const data = JSON.parse(e.data);
+                    // Check for a system shutdown message first
+                    if (data.username === "System" && data.message && data.message.includes("closed by the creator")) {
+                        chatLog.value += data.username + ': ' + data.message + '\n';
+                        chatLog.value += 'You will be disconnected.\n';
+                        chatMessageInput.disabled = true;
+                        chatMessageSubmit.disabled = true;
+                        sessionStorage.removeItem('roomSecretFor_' + roomName); // Clear secret on explicit shutdown
+                    } else if (data.username && data.message) {
+                        chatLog.value += (data.username + ': ' + data.message + '\n');
+                    } else if (data.message) { // Handle messages that might not have a username (e.g., system messages)
+                         chatLog.value += (data.message + '\n');
+                    } else {
+                        console.warn("Received WebSocket message with unexpected structure:", data);
+                    }
+                } catch (error) {
+                    console.error("Failed to parse WebSocket message data:", e.data, error);
+                    chatLog.value += "Received an unreadable message.\n";
+                }
+                chatLog.scrollTop = chatLog.scrollHeight;
             };
 
             chatSocket.onclose = function(e) {
                 console.error('Chat socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
                 chatLog.value += 'Disconnected from chat. Try refreshing the page.\n';
+                chatMessageInput.disabled = true;
+                chatMessageSubmit.disabled = true;
+                // Clear the secret from session storage on any disconnect,
+                // so a refresh doesn't try to use an old secret automatically.
+                const storageKey = 'roomSecretFor_' + roomName;
+                sessionStorage.removeItem(storageKey);
             };
 
             chatSocket.onerror = function(err) {
                 console.error('Socket encountered error: ', err.message, 'Closing socket');
                 chatLog.value += 'Error connecting to chat. Try refreshing the page.\n';
-                chatSocket.close();
+                chatMessageInput.disabled = true;
+                chatMessageSubmit.disabled = true;
+                // Also clear secret on error, as the connection might not be usable
+                const storageKey = 'roomSecretFor_' + roomName;
+                sessionStorage.removeItem(storageKey);
             };
-        };
+        }
+
+        if (userIsAuthenticated) {
+            currentChatUsername = JSON.parse(document.getElementById('user-username-data').textContent);
+            // Chat interface is already visible due to Django template logic, username input is not rendered.
+            initializeWebSocket();
+        } else {
+            // User is anonymous, chat interface is hidden, username input is visible.
+            // Assign these selectors here as the elements are guaranteed to exist for anonymous users
+            usernameInput = document.getElementById('username-input');
+            joinChatButton = document.getElementById('join-chat-button');
+            if (joinChatButton) { // Ensure the button exists for anonymous users
+                joinChatButton.onclick = function() {
+                    const enteredName = usernameInput.value.trim();
+                    if (enteredName === '') {
+                        alert('Please enter a name to join the chat.');
+                        usernameInput.focus();
+                        return;
+                    }
+                    currentChatUsername = enteredName;
+                    initializeWebSocket();
+                };
+                // Allow pressing Enter in username input to join
+                if (usernameInput) { // Check if usernameInput was successfully selected
+                    usernameInput.onkeyup = function(e) {
+                        if (e.key === 'Enter') {
+                            joinChatButton.click();
+                        }
+                    }
+                };
+            }
+        }
 
         chatMessageInput.onkeyup = function(e) {
             if (e.key === 'Enter') {  // Enter key
@@ -101,7 +176,7 @@
             if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
                 chatSocket.send(JSON.stringify({
                     'message': message,
-                    'username': currentUsername
+                    'username': currentChatUsername // Use the determined username
                 }));
             }
           chatMessageInput.value = '';

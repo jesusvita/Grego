@@ -174,6 +174,6 @@ LOGGING = {
     },
 }
 
-LOGIN_REDIRECT_URL = 'home'  # Replace with your actual home route name
+LOGIN_REDIRECT_URL = 'create_room'  # Replace with your actual home route name
 LOGOUT_REDIRECT_URL = 'login'
 

@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div id="create-room-form">
+    <h1 class="text-2xl font-bold">Create or Enter a Chat Room</h1>
+    <p>You are logged in as <strong>{{ user.username }}</strong>.</p>
+
+    Enter the name of the chat room you'd like to create or join:<br>
+    <input id="room-name-input" type="text" size="100"><br>
+    <br>
+    (Optional) Enter a secret phrase to control this room (only you can use it):<br>
+    <input id="secret-phrase-input" type="text" size="100" placeholder="e.g., abracadabra-close"><br>
+    <input id="room-name-submit" type="button" value="Enter">
+  </div>
+
+  <div id="room-created-info" style="display: none;">
+    <h1 id="room-created-title" class="text-2xl font-bold"></h1>
+    <p>Share the room using the QR code or the direct link below.</p>
+    <div style="text-align: center; margin: 20px 0;">
+        <img id="room-qr-code" src="" alt="Room QR Code" style="width: 200px; height: 200px; margin: auto;">
+    </div>
+    <p>
+      Direct link: <a id="room-direct-link" href="#" target="_blank" class="text-blue-500 hover:underline"></a>
+    </p>
+    <p style="margin-top: 20px;">
+      <a id="join-room-button" href="#" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        Join Room Now
+      </a>
+    </p>
+  </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const roomNameInput = document.querySelector('#room-name-input');
+            const secretPhraseInput = document.querySelector('#secret-phrase-input');
+            const roomNameSubmitButton = document.querySelector('#room-name-submit');
+
+            const createRoomFormDiv = document.querySelector('#create-room-form');
+            const roomCreatedInfoDiv = document.querySelector('#room-created-info');
+            const roomCreatedTitle = document.querySelector('#room-created-title');
+            const roomQrCodeImg = document.querySelector('#room-qr-code');
+            const roomDirectLink = document.querySelector('#room-direct-link');
+            const joinRoomButton = document.querySelector('#join-room-button');
+
+            if (roomNameInput) {
+                roomNameInput.focus();
+                roomNameInput.onkeyup = function(e) {
+                    if (e.key === 'Enter') {
+                        if (roomNameSubmitButton) roomNameSubmitButton.click();
+                    }
+                };
+            }
+
+            if (roomNameSubmitButton) {
+                roomNameSubmitButton.onclick = function(e) {
+                    if (!roomNameInput || !secretPhraseInput || !createRoomFormDiv || !roomCreatedInfoDiv ||
+                        !roomCreatedTitle || !roomQrCodeImg || !roomDirectLink || !joinRoomButton) {
+                        console.error('One or more critical DOM elements are missing.');
+                        alert('Page setup error. Please refresh and try again.');
+                        return;
+                    }
+
+                    var roomName = roomNameInput.value.trim();
+                    var secretPhrase = secretPhraseInput.value.trim();
+
+                    if (roomName === '') {
+                        alert('Please enter a room name.');
+                        roomNameInput.focus();
+                        return;
+                    }
+
+                    if (secretPhrase !== '') {
+                        sessionStorage.setItem('roomSecretFor_' + roomName, secretPhrase);
+                    } else {
+                        sessionStorage.removeItem('roomSecretFor_' + roomName);
+                    }
+
+                    const roomPath = '/chat/' + encodeURIComponent(roomName) + '/';
+                    const fullRoomURL = window.location.origin + roomPath;
+
+                    roomCreatedTitle.textContent = `Room "${roomName}" is Ready!`;
+                    roomQrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullRoomURL)}`;
+                    roomQrCodeImg.alt = `QR Code for room ${roomName}`;
+                    roomDirectLink.href = fullRoomURL;
+                    roomDirectLink.textContent = fullRoomURL;
+                    joinRoomButton.href = fullRoomURL;
+
+                    createRoomFormDiv.style.display = 'none';
+                    roomCreatedInfoDiv.style.display = 'block';
+                };
+            }
+        });
+    </script>
+{% endblock %}

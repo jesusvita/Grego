@@ -22,7 +22,11 @@ from django.urls import include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', chat_views.index, name='index'),  # Route for the root URL
+    # Decide what your root URL should be. Example: list_active_rooms
+    # path('', chat_views.list_active_rooms, name='home_page'), 
+    # Or if you have a separate home.html:
+    path('', chat_views.home_view, name='home_page'), # Assuming home_view serves a general landing page
+    path('create_room/', chat_views.create_room_view, name='create_room'),  # New URL for creating/entering a room
     path('rooms/', chat_views.list_active_rooms, name='list_active_rooms'), # New route for listing rooms
     path('chat/', include('chat.urls')),
     path('accounts/', include('accounts.urls')),
