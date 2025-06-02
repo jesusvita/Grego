@@ -27,8 +27,8 @@
 
     <div class="chat-interface" {% if not user.is_authenticated %}style="display: none;"{% endif %}>
         <textarea id="chat-log" readonly aria-live="polite" aria-atomic="false"></textarea><br>
-        <input id="chat-message-input" type="text" placeholder="Type message..."><br>
-        <input id="chat-message-submit" type="button" value="Send">
+        <input id="chat-message-input" type="text" placeholder="Type message..." disabled><br>
+        <input id="chat-message-submit" type="button" value="Send" disabled>
     </div>
 
     {{ room_name|json_script:"room-name-data" }}
@@ -55,36 +55,47 @@
         const chatMessageSubmit = document.querySelector('#chat-message-submit');
 
         let chatSocket = null;
+        let systemInitiatedDisconnect = false; // Flag to track if disconnect was due to system shutdown message
 
         function initializeWebSocket() {
             // Ensure chat interface is visible and username input is hidden
             if (usernameInputSection) usernameInputSection.style.display = 'none';
             chatInterfaceDiv.style.display = 'block';
-            chatMessageInput.focus();
-            chatMessageInput.disabled = false; // Ensure enabled on connect
-            chatMessageSubmit.disabled = false; // Ensure enabled on connect
+            // Inputs will be enabled in onopen
+            systemInitiatedDisconnect = false; // Reset flag on new connection attempt
 
             let wsScheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
             let wsPath = wsScheme + window.location.host + '/ws/chat/' + roomName + '/';
 
+            console.log('[DEBUG] Initializing WebSocket. Room Name:', roomName, 'User Authenticated:', userIsAuthenticated);
+
             // Retrieve secret from sessionStorage for WebSocket connection if user is authenticated
             // This assumes the secret was stored in sessionStorage on the create_room.html page
             if (userIsAuthenticated) {
+                console.log('[DEBUG] User is authenticated, attempting to retrieve secret.');
                 const storageKey = 'roomSecretFor_' + roomName; // Must match the key used in create_room.html
+                console.log('[DEBUG] Attempting to get secret from sessionStorage with key:', storageKey);
                 const secretForWsConnection = sessionStorage.getItem(storageKey);
+                console.log('[DEBUG] Secret retrieved from sessionStorage:', secretForWsConnection);
+
                 if (secretForWsConnection) {
                     wsPath += '?secret=' + encodeURIComponent(secretForWsConnection);
+                    console.log('[DEBUG] Secret found and appended to wsPath.');
                     // Clear it after use for this WebSocket connection attempt.
                     // This means a page refresh won't automatically use the same secret again for the WS connection.
                     sessionStorage.removeItem(storageKey);
+                    console.log('[DEBUG] Secret removed from sessionStorage after use.');
                 }
             }
-
+            console.log('[DEBUG] Final WebSocket Path:', wsPath);
             chatSocket = new WebSocket(wsPath);
 
             chatSocket.onopen = function(e) {
                 console.log('Chat socket opened.');
                 chatLog.value += 'You have joined the chat as ' + currentChatUsername + '.\n';
+                chatMessageInput.disabled = false; // Enable input on successful connection
+                chatMessageSubmit.disabled = false; // Enable button on successful connection
+                chatMessageInput.focus();
             };
 
             chatSocket.onmessage = function(e) {
@@ -96,6 +107,7 @@
                         chatLog.value += 'You will be disconnected.\n';
                         chatMessageInput.disabled = true;
                         chatMessageSubmit.disabled = true;
+                        systemInitiatedDisconnect = true; // Set flag
                         sessionStorage.removeItem('roomSecretFor_' + roomName); // Clear secret on explicit shutdown
                     } else if (data.username && data.message) {
                         chatLog.value += (data.username + ': ' + data.message + '\n');
@@ -112,12 +124,26 @@
             };
 
             chatSocket.onclose = function(e) {
-                console.error('Chat socket closed unexpectedly. Code:', e.code, 'Reason:', e.reason);
-                chatLog.value += 'Disconnected from chat. Try refreshing the page.\n';
+                console.error('Chat socket closed. Code:', e.code, 'Reason:', e.reason, 'Was clean:', e.wasClean);
+                
                 chatMessageInput.disabled = true;
                 chatMessageSubmit.disabled = true;
-                // Clear the secret from session storage on any disconnect,
-                // so a refresh doesn't try to use an old secret automatically.
+                
+                if (systemInitiatedDisconnect) {
+                    // Message already handled by onmessage, just log and reset flag
+                    console.log("Chat closed due to system initiated disconnect.");
+                    // systemInitiatedDisconnect is reset in initializeWebSocket
+                } else if (e.code === 4004) { // Custom code for "room not found/active"
+                    chatLog.value += 'Connection failed: This chat room is not currently active or available.\n';
+                } else if (e.code === 4003) { // Custom code for "access denied / wrong secret"
+                    chatLog.value += 'Connection failed: Access to this room is denied.\n';
+                } else if (e.code !== 1000) { // Any non-normal close (1000) that wasn't system-initiated
+                    chatLog.value += 'Disconnected from chat unexpectedly. Try refreshing the page.\n';
+                } else { // Normal close (e.code === 1000) not initiated by system shutdown message
+                    chatLog.value += 'Disconnected from chat.\n';
+                }
+                chatLog.scrollTop = chatLog.scrollHeight; // Ensure scrolled after adding message
+
                 const storageKey = 'roomSecretFor_' + roomName;
                 sessionStorage.removeItem(storageKey);
             };
@@ -127,7 +153,7 @@
                 chatLog.value += 'Error connecting to chat. Try refreshing the page.\n';
                 chatMessageInput.disabled = true;
                 chatMessageSubmit.disabled = true;
-                // Also clear secret on error, as the connection might not be usable
+                chatLog.scrollTop = chatLog.scrollHeight;
                 const storageKey = 'roomSecretFor_' + roomName;
                 sessionStorage.removeItem(storageKey);
             };

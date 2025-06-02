@@ -16,6 +16,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # Create a Channels group name specific to the room
         self.room_group_name = f'chat_{self.room_name}'
 
+        logger.info(f"[CONSUMER CONNECT] Scope user: {self.scope.get('user', 'N/A')}, Authenticated: {self.scope.get('user', type('obj', (object,), {'is_authenticated': False})()).is_authenticated}")
+
         # Extract secret phrase if present in the scope (passed from URL via view to WebSocket scope)
         # This requires modifying asgi.py or using a custom middleware to pass query params to scope if not already there.
         # For simplicity, we'll assume the client (room.html JS) will send it on first message if it's the creator.

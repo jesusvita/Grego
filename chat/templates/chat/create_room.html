@@ -5,12 +5,12 @@
     <h1 class="text-2xl font-bold">Create or Enter a Chat Room</h1>
     <p>You are logged in as <strong>{{ user.username }}</strong>.</p>
 
-    Enter the name of the chat room you'd like to create or join:<br>
-    <input id="room-name-input" type="text" size="100"><br>
+    <label for="room-name-input">Enter the name of the chat room you'd like to create or join:</label><br>
+    <input id="room-name-input" type="text" class="border p-2 rounded w-full md:w-3/4 lg:w-1/2 mb-2"><br> 
     <br>
-    (Optional) Enter a secret phrase to control this room (only you can use it):<br>
-    <input id="secret-phrase-input" type="text" size="100" placeholder="e.g., abracadabra-close"><br>
-    <input id="room-name-submit" type="button" value="Enter">
+    <label for="secret-phrase-input">(Optional) Enter a secret phrase to control this room (only you can use it):</label><br>
+    <input id="secret-phrase-input" type="text" placeholder="e.g., abracadabra-close" class="border p-2 rounded w-full md:w-3/4 lg:w-1/2 mb-4"><br>
+    <input id="room-name-submit" type="button" value="Enter" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
   </div>
 
   <div id="room-created-info" style="display: none;">
@@ -69,11 +69,21 @@
                         return;
                     }
 
+                    console.log('[CREATE_ROOM_DEBUG] Room Name entered:', roomName);
+                    console.log('[CREATE_ROOM_DEBUG] Secret Phrase entered:', secretPhrase);
+
                     if (secretPhrase !== '') {
-                        sessionStorage.setItem('roomSecretFor_' + roomName, secretPhrase);
+                        const storageKey = 'roomSecretFor_' + roomName;
+                        console.log('[CREATE_ROOM_DEBUG] Storing secret in sessionStorage. Key:', storageKey, 'Value:', secretPhrase);
+                        sessionStorage.setItem(storageKey, secretPhrase);
+                        console.log('[CREATE_ROOM_DEBUG] Value immediately after setItem from sessionStorage:', sessionStorage.getItem(storageKey)); // Verify it was set
                     } else {
-                        sessionStorage.removeItem('roomSecretFor_' + roomName);
+                        const storageKeyToRemove = 'roomSecretFor_' + roomName;
+                        console.log('[CREATE_ROOM_DEBUG] No secret phrase entered or it is empty. Attempting to remove from sessionStorage with key:', storageKeyToRemove);
+                        sessionStorage.removeItem(storageKeyToRemove);
+                        console.log('[CREATE_ROOM_DEBUG] Value immediately after removeItem from sessionStorage:', sessionStorage.getItem(storageKeyToRemove)); // Verify it was removed
                     }
+
 
                     const roomPath = '/chat/' + encodeURIComponent(roomName) + '/';
                     const fullRoomURL = window.location.origin + roomPath;
@@ -87,6 +97,7 @@
 
                     createRoomFormDiv.style.display = 'none';
                     roomCreatedInfoDiv.style.display = 'block';
+                    if (joinRoomButton) joinRoomButton.focus(); // Set focus to the join button
                 };
             }
         });
