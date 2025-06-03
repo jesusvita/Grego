@@ -1,28 +1,24 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8"/>
-    <title>Active Chat Rooms</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin-bottom: 10px; }
-        a { text-decoration: none; color: #007bff; }
-        a:hover { text-decoration: underline; }
-        .no-rooms { color: #777; }
-    </style>
-</head>
-<body>
-    <h1>Active Chat Rooms</h1>
+{% extends 'base.html' %}
+
+{% block title %}Active Chat Rooms{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-8 px-4">
+    <h1 class="text-2xl font-bold mb-4">Active Chat Rooms</h1>
     {% if active_rooms %}
-        <ul>
+        <ul class="list-disc list-inside space-y-2">
             {% for room_name in active_rooms %}
-                <li><a href="{% url 'chat:room' room_name=room_name %}">{{ room_name }}</a></li>
+                <li>
+                    <a href="{% url 'chat:room' room_name=room_name %}" class="text-blue-600 hover:underline">
+                        {{ room_name }}
+                    </a>
+                </li>
             {% endfor %}
         </ul>
     {% else %}
         <p class="no-rooms">No active rooms at the moment. Be the first to start one!</p>
     {% endif %}
-    <p><a href="{% url 'login' %}">Back to Home</a></p>
+    <p class="mt-4"><a href="{% url 'create_room' %}" class="text-blue-600 hover:underline">Back to Home</a></p> {# Or your actual home page URL name #}
 </body>
-</html>
+</div>
+{% endblock %}

@@ -12,9 +12,13 @@ room_secrets_and_creators = {}
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # Extract room name from the URL
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
+        url_room_name = self.scope['url_route']['kwargs']['room_name']
+        self.room_name = url_room_name # Keep original room name for display or other logic
+        
+        # Sanitize the room name for use in the group name (replace spaces with underscores)
+        safe_room_name_for_group = url_room_name.replace(" ", "_")
         # Create a Channels group name specific to the room
-        self.room_group_name = f'chat_{self.room_name}'
+        self.room_group_name = f'chat_{safe_room_name_for_group}'
 
         logger.info(f"[CONSUMER CONNECT] Scope user: {self.scope.get('user', 'N/A')}, Authenticated: {self.scope.get('user', type('obj', (object,), {'is_authenticated': False})()).is_authenticated}")
 

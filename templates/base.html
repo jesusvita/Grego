@@ -9,18 +9,17 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 text-gray-900">
-  <nav class="bg-black text-white px-4 py-3 shadow flex justify-between items-center">
-    <div class="text-xl font-bold text-red-500">
-      Grego Chat
-    </div>
+  <nav class="bg-red-800 text-white px-4 py-3 shadow flex justify-end items-center">
+    <div><!-- This div is now just a placeholder or can be removed if not needed for spacing --></div>
     <div class="space-x-4">
       {% if user.is_authenticated %}
-        <span>Welcome, {{ user.username }}!</span>
-        <form action="{% url 'logout' %}" method="post" style="display:inline;">
-            {% csrf_token %}
-            <button type="submit">Logout</button>
-        </form>
-        {% else %}
+        <!-- Hamburger Icon -->
+        <button id="hamburger-button" class="text-white focus:outline-none">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+            </svg>
+        </button>
+      {% else %}
         <a href="{% url 'login' %}" class="text-red-400 hover:text-white">Login</a>
         <a href="{% url 'signup' %}" class="text-red-400 hover:text-white">Sign Up</a>
       {% endif %}
@@ -32,5 +31,67 @@
     <!-- Content goes here -->
     {% endblock %}
   </main>
+
+  {% if user.is_authenticated %}
+  <!-- Sidebar Overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+
+  <!-- Sidebar Navigation -->
+  <div id="sidebar" class="fixed top-0 right-0 h-full w-64 sm:w-72 bg-red-800 text-white p-6 shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-50 flex flex-col">
+      <!-- Sidebar Header with Close Button -->
+      <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-semibold text-white">{{ user.username }}</h2>
+          <button id="close-sidebar-button" class="text-white hover:text-gray-300">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+          </button>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="flex-grow">
+          <ul>
+              <li class="mb-3"><a href="{% url 'create_room' %}" class="block py-2 px-1 hover:bg-red-700 rounded">Create Room</a></li>
+              <li class="mb-3"><a href="{% url 'list_active_rooms' %}" class="block py-2 px-1 hover:bg-red-700 rounded">Rooms</a></li>
+              <li class="mb-3">
+                <span class="block py-2 px-1 text-red-300 font-semibold">QR codes</span>
+                <ul class="pl-4 mt-1 space-y-1">
+                    <li><a href="{% url 'chat:menu_qr' %}" class="block py-1 px-1 hover:bg-red-700 rounded text-sm">Menu QR</a></li>
+                    <li><a href="{% url 'chat:review_qr' %}" class="block py-1 px-1 hover:bg-red-700 rounded text-sm">Review QR</a></li>
+                </ul>
+              </li>
+          </ul>
+      </nav>
+
+      <!-- Logout Button (at the bottom) -->
+      <div class="mt-auto">
+          <form action="{% url 'logout' %}" method="post" class="w-full">
+              {% csrf_token %}
+              <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded">Logout</button>
+          </form>
+      </div>
+  </div>
+  {% endif %}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const hamburgerButton = document.getElementById('hamburger-button');
+      const sidebar = document.getElementById('sidebar');
+      const closeSidebarButton = document.getElementById('close-sidebar-button');
+      const overlay = document.getElementById('sidebar-overlay');
+
+      function toggleSidebar(show) {
+        if (sidebar && overlay) {
+          sidebar.classList.toggle('translate-x-full', !show); // Hide if show is false
+          sidebar.classList.toggle('translate-x-0', show);    // Show if show is true
+          overlay.classList.toggle('hidden', !show);
+        }
+      }
+
+      if (hamburgerButton) hamburgerButton.addEventListener('click', () => toggleSidebar(true));
+      if (closeSidebarButton) closeSidebarButton.addEventListener('click', () => toggleSidebar(false));
+      if (overlay) overlay.addEventListener('click', () => toggleSidebar(false));
+    });
+  </script>
 </body>
 </html>

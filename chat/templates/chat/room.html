@@ -1,36 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8"/>
-    <title>Chat Room: {{ room_name }}</title>
-    <style>
-        body { font-family: sans-serif; margin: 20px; }
-        #chat-log { width: 80%; height: 300px; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; overflow-y: scroll; }
-        /* .chat-interface { display: none; } Removed, chat is visible by default */
-        #username-input-section { margin-bottom: 15px; }
-        #username-input { padding: 10px; margin-right: 5px; }
-        #join-chat-button { padding: 10px; }
-        #chat-message-input { width: calc(70% - 70px); padding: 10px; margin-right: 5px; }
-        #chat-message-submit { padding: 10px; width: 60px; }
+{% extends 'base.html' %}
 
-    </style>
-</head>
-<body>
-    {% if user.is_authenticated %}
-        <p>Welcome, <strong>{{ user.username }}</strong>!</p>
-    {% else %}
-        <div id="username-input-section">
+{% block title %}Chat Room: {{ room_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-4 sm:mt-8 px-2 sm:px-4">
+    {# The room name and welcome message will now appear inside the chat log. #}
+    {# Show username input section only if the user is not authenticated. #}
+    {% if not user.is_authenticated %}
+        <div id="username-input-section" class="mb-4">
             <input id="username-input" type="text" placeholder="Enter your name..." aria-label="Enter your name to join chat"/>
             <input id="join-chat-button" type="button" value="Join Chat">
         </div>
     {% endif %}
 
     <div class="chat-interface" {% if not user.is_authenticated %}style="display: none;"{% endif %}>
-        <textarea id="chat-log" readonly aria-live="polite" aria-atomic="false"></textarea><br>
-        <input id="chat-message-input" type="text" placeholder="Type message..." disabled><br>
-        <input id="chat-message-submit" type="button" value="Send" disabled>
+        <div id="chat-log" 
+             aria-live="polite" aria-atomic="false" role="log"
+             class="w-full h-64 sm:h-80 border rounded p-2 mb-2 bg-white overflow-y-auto whitespace-pre-wrap break-words">
+        </div>
+        <div class="flex">
+            <input id="chat-message-input" type="text" placeholder="Type message..." disabled class="flex-grow border rounded-l-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <input id="chat-message-submit" type="button" value="Send" disabled class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r-md">
+        </div>
     </div>
-
+</div>
     {{ room_name|json_script:"room-name-data" }}
    
     {{ user.is_authenticated|json_script:"user-is-authenticated-data" }}
@@ -57,6 +50,13 @@
         let chatSocket = null;
         let systemInitiatedDisconnect = false; // Flag to track if disconnect was due to system shutdown message
 
+        // Helper function to escape HTML to prevent XSS
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
         function initializeWebSocket() {
             // Ensure chat interface is visible and username input is hidden
             if (usernameInputSection) usernameInputSection.style.display = 'none';
@@ -65,7 +65,7 @@
             systemInitiatedDisconnect = false; // Reset flag on new connection attempt
 
             let wsScheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-            let wsPath = wsScheme + window.location.host + '/ws/chat/' + roomName + '/';
+            let wsPath = wsScheme + window.location.host + '/ws/chat/' + encodeURIComponent(roomName) + '/';
 
             console.log('[DEBUG] Initializing WebSocket. Room Name:', roomName, 'User Authenticated:', userIsAuthenticated);
 
@@ -92,7 +92,9 @@
 
             chatSocket.onopen = function(e) {
                 console.log('Chat socket opened.');
-                chatLog.value += 'You have joined the chat as ' + currentChatUsername + '.\n';
+                // Add the room name to the chat log
+                chatLog.innerHTML += '--- Chat Room: ' + roomName + ' ---<br>';
+                chatLog.innerHTML += 'You have joined the chat as <strong>' + escapeHTML(currentChatUsername) + '</strong>.<br><br>'; 
                 chatMessageInput.disabled = false; // Enable input on successful connection
                 chatMessageSubmit.disabled = false; // Enable button on successful connection
                 chatMessageInput.focus();
@@ -103,22 +105,22 @@
                     const data = JSON.parse(e.data);
                     // Check for a system shutdown message first
                     if (data.username === "System" && data.message && data.message.includes("closed by the creator")) {
-                        chatLog.value += data.username + ': ' + data.message + '\n';
-                        chatLog.value += 'You will be disconnected.\n';
+                        chatLog.innerHTML += '<strong>' + escapeHTML(data.username) + '</strong>: ' + escapeHTML(data.message) + '<br>';
+                        chatLog.innerHTML += 'You will be disconnected.<br>';
                         chatMessageInput.disabled = true;
                         chatMessageSubmit.disabled = true;
                         systemInitiatedDisconnect = true; // Set flag
                         sessionStorage.removeItem('roomSecretFor_' + roomName); // Clear secret on explicit shutdown
                     } else if (data.username && data.message) {
-                        chatLog.value += (data.username + ': ' + data.message + '\n');
+                        chatLog.innerHTML += '<strong>' + escapeHTML(data.username) + '</strong>: ' + escapeHTML(data.message) + '<br>';
                     } else if (data.message) { // Handle messages that might not have a username (e.g., system messages)
-                         chatLog.value += (data.message + '\n');
+                         chatLog.innerHTML += escapeHTML(data.message) + '<br>';
                     } else {
                         console.warn("Received WebSocket message with unexpected structure:", data);
                     }
                 } catch (error) {
                     console.error("Failed to parse WebSocket message data:", e.data, error);
-                    chatLog.value += "Received an unreadable message.\n";
+                    chatLog.innerHTML += "Received an unreadable message.<br>";
                 }
                 chatLog.scrollTop = chatLog.scrollHeight;
             };
@@ -134,13 +136,13 @@
                     console.log("Chat closed due to system initiated disconnect.");
                     // systemInitiatedDisconnect is reset in initializeWebSocket
                 } else if (e.code === 4004) { // Custom code for "room not found/active"
-                    chatLog.value += 'Connection failed: This chat room is not currently active or available.\n';
+                    chatLog.innerHTML += 'Connection failed: This chat room is not currently active or available.<br>';
                 } else if (e.code === 4003) { // Custom code for "access denied / wrong secret"
-                    chatLog.value += 'Connection failed: Access to this room is denied.\n';
+                    chatLog.innerHTML += 'Connection failed: Access to this room is denied.<br>';
                 } else if (e.code !== 1000) { // Any non-normal close (1000) that wasn't system-initiated
-                    chatLog.value += 'Disconnected from chat unexpectedly. Try refreshing the page.\n';
+                    chatLog.innerHTML += 'Disconnected from chat unexpectedly. Try refreshing the page.<br>';
                 } else { // Normal close (e.code === 1000) not initiated by system shutdown message
-                    chatLog.value += 'Disconnected from chat.\n';
+                    chatLog.innerHTML += 'Disconnected from chat.<br>';
                 }
                 chatLog.scrollTop = chatLog.scrollHeight; // Ensure scrolled after adding message
 
@@ -150,7 +152,7 @@
 
             chatSocket.onerror = function(err) {
                 console.error('Socket encountered error: ', err.message, 'Closing socket');
-                chatLog.value += 'Error connecting to chat. Try refreshing the page.\n';
+                chatLog.innerHTML += 'Error connecting to chat. Try refreshing the page.<br>';
                 chatMessageInput.disabled = true;
                 chatMessageSubmit.disabled = true;
                 chatLog.scrollTop = chatLog.scrollHeight;
@@ -209,5 +211,4 @@
          };
 
     </script>
-</body>
-</html>
+{% endblock %}

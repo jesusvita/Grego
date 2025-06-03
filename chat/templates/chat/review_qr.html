@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto mt-8 px-4 text-center">
+    <h1 class="text-2xl font-bold mb-6">{{ page_title }}</h1>
+
+    <div id="qrcode" class="inline-block border p-4 bg-white shadow-lg rounded-md">
+        <!-- QR Code will be generated here by JavaScript -->
+    </div>
+
+    <p class="mt-6 text-sm text-gray-600">
+        Scan the QR code above to leave a review.
+    </p>
+    <p class="mt-2">
+        <a href="{{ qr_data_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+            Or click here to open the review page directly.
+        </a>
+    </p>
+    <p class="mt-8">
+        <a href="{% url 'create_room' %}" class="text-blue-600 hover:underline">Back to Home</a>
+    </p>
+</div>
+
+<!-- Include qrcode.js library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    var qrDataUrl = "{{ qr_data_url|escapejs }}"; // Get URL from Django context
+    
+    if (qrDataUrl) {
+        new QRCode(document.getElementById("qrcode"), {
+            text: qrDataUrl,
+            width: 256,  // You can adjust the size
+            height: 256, // You can adjust the size
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H // High error correction
+        });
+    } else {
+        document.getElementById("qrcode").innerHTML = "Error: QR Code URL not provided.";
+    }
+});
+</script>
+{% endblock %}
